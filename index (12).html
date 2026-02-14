@@ -1,0 +1,1906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinancePad</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ─── RESET & TOKENS ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #f4f6f9;
+      --surface:     #ffffff;
+      --surface-2:   #f8f9fb;
+      --border:      #e8ecf0;
+
+      --text-primary:   #0f1923;
+      --text-secondary: #5a6677;
+      --text-muted:     #9aa5b4;
+
+      --accent:        #1a56e8;
+      --accent-soft:   #eff3fd;
+      --accent-2:      #0ea371;
+      --accent-2-soft: #edfaf5;
+      --danger:        #e84040;
+      --danger-soft:   #fef2f2;
+      --warning:       #f59e0b;
+      --warning-soft:  #fffbeb;
+
+      --radius-sm:  6px;
+      --radius:     12px;
+      --radius-lg:  18px;
+
+      --shadow-sm:  0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+      --shadow:     0 4px 16px rgba(0,0,0,.07), 0 1px 4px rgba(0,0,0,.05);
+      --shadow-lg:  0 12px 32px rgba(0,0,0,.10), 0 4px 12px rgba(0,0,0,.06);
+
+      --nav-w:      220px;
+      --header-h:   64px;
+      --transition: 180ms ease;
+    }
+
+    html { font-size: 15px; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+
+    /* ─── LOADING OVERLAY ────────────────────────────────────── */
+    #loading-overlay {
+      position: fixed; inset: 0; z-index: 9999;
+      background: var(--surface);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 16px;
+      transition: opacity .4s ease;
+    }
+    #loading-overlay.hidden { opacity: 0; pointer-events: none; }
+    .loader-logo {
+      width: 52px; height: 52px; background: var(--accent);
+      border-radius: 14px; display: flex; align-items: center;
+      justify-content: center; font-size: 26px;
+      box-shadow: 0 8px 24px rgba(26,86,232,.3);
+    }
+    .loader-bar { width: 180px; height: 3px; background: var(--border); border-radius: 99px; overflow: hidden; }
+    .loader-bar-fill {
+      height: 100%; width: 0%; background: var(--accent);
+      border-radius: 99px; animation: loadFill 1.6s ease forwards;
+    }
+    @keyframes loadFill { to { width: 100%; } }
+    .loader-text { font-size: 13px; color: var(--text-muted); font-weight: 500; }
+
+    /* ─── TOAST ──────────────────────────────────────────────── */
+    #toast-container {
+      position: fixed; bottom: 24px; right: 24px; z-index: 8000;
+      display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+    }
+    .toast {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px;
+      background: var(--text-primary); color: #fff;
+      border-radius: var(--radius); font-size: 13.5px; font-weight: 500;
+      box-shadow: var(--shadow-lg);
+      min-width: 240px; max-width: 340px; pointer-events: auto;
+      animation: toastIn .25s ease;
+      transition: opacity .3s, transform .3s;
+    }
+    .toast.success { background: var(--accent-2); }
+    .toast.error   { background: var(--danger); }
+    .toast.warning { background: var(--warning); color: var(--text-primary); }
+    @keyframes toastIn { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    /* ─── AUTH SCREEN ─────────────────────────────────────────── */
+    #auth-screen {
+      display: none;
+      position: fixed; inset: 0; z-index: 500;
+      background: linear-gradient(135deg, #0f1923 0%, #1a2744 100%);
+      align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    #auth-screen.visible { display: flex; }
+
+    .auth-card {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      padding: 40px 36px;
+      width: 100%; max-width: 400px;
+      box-shadow: var(--shadow-lg);
+    }
+    .auth-logo {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 28px;
+    }
+    .auth-logo-icon {
+      width: 42px; height: 42px; background: var(--accent);
+      border-radius: 12px; display: flex; align-items: center;
+      justify-content: center; font-size: 22px;
+      box-shadow: 0 6px 20px rgba(26,86,232,.3);
+    }
+    .auth-logo-text { font-size: 22px; font-weight: 800; letter-spacing: -.5px; }
+    .auth-logo-sub  { font-size: 12px; color: var(--text-muted); }
+    .auth-title     { font-size: 20px; font-weight: 700; margin-bottom: 6px; letter-spacing: -.3px; }
+    .auth-subtitle  { font-size: 14px; color: var(--text-secondary); margin-bottom: 24px; }
+
+    .auth-tabs {
+      display: flex; gap: 4px; padding: 4px;
+      background: var(--surface-2); border-radius: var(--radius-sm);
+      margin-bottom: 24px;
+    }
+    .auth-tab {
+      flex: 1; padding: 8px; text-align: center;
+      background: none; border: none; cursor: pointer;
+      font-family: inherit; font-size: 13.5px; font-weight: 600;
+      color: var(--text-muted); border-radius: 4px;
+      transition: all var(--transition);
+    }
+    .auth-tab.active {
+      background: var(--surface); color: var(--text-primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .auth-form { display: flex; flex-direction: column; gap: 14px; }
+    .auth-form .field { display: flex; flex-direction: column; gap: 5px; }
+    .auth-form label { font-size: 12.5px; font-weight: 600; color: var(--text-secondary); }
+    .auth-form input {
+      padding: 10px 13px;
+      background: var(--surface-2); border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm); font-family: inherit; font-size: 14px;
+      color: var(--text-primary); outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .auth-form input:focus {
+      border-color: var(--accent); background: #fff;
+      box-shadow: 0 0 0 3px rgba(26,86,232,.1);
+    }
+    .auth-form input.invalid { border-color: var(--danger); }
+    .field-error { font-size: 12px; color: var(--danger); margin-top: 3px; display: none; }
+    .field-error.visible { display: block; }
+
+    .auth-btn {
+      padding: 11px 20px; background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius-sm); font-family: inherit;
+      font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 4px;
+      box-shadow: 0 2px 8px rgba(26,86,232,.25);
+      transition: background var(--transition), transform var(--transition);
+    }
+    .auth-btn:hover:not(:disabled) { background: #1245cc; }
+    .auth-btn:active { transform: scale(.98); }
+    .auth-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+    .auth-divider { text-align: center; font-size: 12px; color: var(--text-muted); margin: 4px 0; }
+    .auth-err {
+      background: var(--danger-soft); border: 1px solid #fca5a5;
+      color: var(--danger); border-radius: var(--radius-sm);
+      padding: 10px 13px; font-size: 13px; font-weight: 500;
+      display: none;
+    }
+    .auth-err.visible { display: block; }
+
+    /* Password strength meter */
+    .pw-strength { margin-top: 5px; }
+    .pw-strength-bar {
+      height: 3px; background: var(--border);
+      border-radius: 99px; overflow: hidden;
+    }
+    .pw-strength-fill {
+      height: 100%; border-radius: 99px; width: 0%;
+      transition: width .3s, background .3s;
+    }
+    .pw-strength-label { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+    /* ─── DB ERROR BANNER ────────────────────────────────────── */
+    #db-error-banner {
+      display: none; background: var(--danger-soft);
+      border: 1px solid #fca5a5; color: var(--danger);
+      border-radius: var(--radius); padding: 12px 16px;
+      font-size: 13.5px; font-weight: 500; margin-bottom: 16px;
+      gap: 10px; align-items: flex-start;
+    }
+    #db-error-banner.visible { display: flex; }
+
+    /* ─── LAYOUT ─────────────────────────────────────────────── */
+    #app { display: flex; min-height: 100vh; }
+
+    /* SIDEBAR */
+    #sidebar {
+      width: var(--nav-w); background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      position: fixed; left: 0; top: 0; bottom: 0;
+      z-index: 100; transition: transform var(--transition);
+    }
+    .sidebar-logo {
+      height: var(--header-h); display: flex; align-items: center;
+      gap: 10px; padding: 0 20px; border-bottom: 1px solid var(--border);
+      text-decoration: none;
+    }
+    .sidebar-logo-icon {
+      width: 32px; height: 32px; background: var(--accent);
+      border-radius: 9px; display: flex; align-items: center;
+      justify-content: center; font-size: 16px; flex-shrink: 0;
+    }
+    .sidebar-logo-text { font-size: 15px; font-weight: 700; color: var(--text-primary); letter-spacing: -.3px; }
+
+    .sidebar-nav { flex: 1; padding: 12px 10px; overflow-y: auto; }
+    .nav-label {
+      font-size: 10.5px; font-weight: 600; letter-spacing: .06em;
+      color: var(--text-muted); text-transform: uppercase;
+      padding: 8px 10px 4px;
+    }
+    .nav-btn {
+      display: flex; align-items: center; gap: 10px;
+      width: 100%; padding: 9px 12px;
+      background: none; border: none; cursor: pointer;
+      border-radius: var(--radius-sm); font-family: inherit;
+      font-size: 14px; font-weight: 500; color: var(--text-secondary);
+      transition: background var(--transition), color var(--transition);
+      text-align: left; white-space: nowrap;
+    }
+    .nav-btn:hover { background: var(--surface-2); color: var(--text-primary); }
+    .nav-btn.active { background: var(--accent-soft); color: var(--accent); }
+    .nav-icon { width: 20px; height: 20px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+
+    .sidebar-footer {
+      padding: 12px 14px; border-top: 1px solid var(--border);
+    }
+    .user-info {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 8px; border-radius: var(--radius-sm);
+      margin-bottom: 6px;
+    }
+    .user-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--accent-soft); color: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 800; flex-shrink: 0;
+    }
+    .user-email { font-size: 12px; color: var(--text-secondary); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+    .logout-btn {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%; padding: 8px 10px;
+      background: none; border: none; cursor: pointer;
+      border-radius: var(--radius-sm); font-family: inherit;
+      font-size: 13px; font-weight: 600; color: var(--danger);
+      transition: background var(--transition);
+    }
+    .logout-btn:hover { background: var(--danger-soft); }
+
+    /* MAIN */
+    #main { flex: 1; margin-left: var(--nav-w); display: flex; flex-direction: column; min-height: 100vh; }
+
+    /* TOP BAR */
+    #topbar {
+      height: var(--header-h); background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center;
+      padding: 0 28px; gap: 16px;
+      position: sticky; top: 0; z-index: 50;
+    }
+    #menu-toggle {
+      display: none; background: none; border: none; cursor: pointer;
+      padding: 6px; border-radius: var(--radius-sm); font-size: 20px; color: var(--text-secondary);
+    }
+    .topbar-title  { font-size: 16px; font-weight: 700; color: var(--text-primary); letter-spacing: -.3px; }
+    .topbar-date   { margin-left: auto; font-size: 13px; color: var(--text-muted); font-family: 'DM Mono', monospace; }
+
+    /* PAGE CONTENT */
+    #content { flex: 1; padding: 28px; }
+
+    /* TAB SECTIONS */
+    .tab-section { display: none; }
+    .tab-section.active { display: block; }
+
+    /* ─── PAGE HEADERS ───────────────────────────────────────── */
+    .page-header { margin-bottom: 24px; }
+    .page-header h1 { font-size: 22px; font-weight: 700; letter-spacing: -.4px; }
+    .page-header p  { font-size: 14px; color: var(--text-secondary); margin-top: 3px; }
+
+    /* ─── CARDS ──────────────────────────────────────────────── */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 22px 24px; box-shadow: var(--shadow-sm);
+    }
+
+    /* ─── STAT GRID ──────────────────────────────────────────── */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 20px 22px; box-shadow: var(--shadow-sm);
+      transition: box-shadow var(--transition), transform var(--transition);
+    }
+    .stat-card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+    .stat-card-icon { width: 38px; height: 38px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 14px; }
+    .stat-card-icon.blue  { background: var(--accent-soft); }
+    .stat-card-icon.green { background: var(--accent-2-soft); }
+    .stat-card-icon.red   { background: var(--danger-soft); }
+    .stat-card-icon.amber { background: var(--warning-soft); }
+    .stat-label { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 5px; }
+    .stat-value { font-size: 24px; font-weight: 700; letter-spacing: -.5px; font-family: 'DM Mono', monospace; }
+    .stat-value.green { color: var(--accent-2); }
+    .stat-value.red   { color: var(--danger); }
+
+    /* ─── GRID LAYOUT ────────────────────────────────────────── */
+    .two-col   { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .three-col { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+
+    /* ─── SECTION HEADER ─────────────────────────────────────── */
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .section-title    { font-size: 15px; font-weight: 700; color: var(--text-primary); letter-spacing: -.2px; }
+    .section-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 1px; }
+
+    /* ─── FORMS ──────────────────────────────────────────────── */
+    .form-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow-sm); }
+    .form-title { font-size: 16px; font-weight: 700; letter-spacing: -.3px; margin-bottom: 18px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-grid .span-2 { grid-column: 1 / -1; }
+
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 12.5px; font-weight: 600; color: var(--text-secondary); }
+    .field input, .field select {
+      padding: 10px 13px; background: var(--surface-2);
+      border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+      font-family: inherit; font-size: 14px; color: var(--text-primary);
+      outline: none; transition: border-color var(--transition), box-shadow var(--transition);
+      appearance: none;
+    }
+    .field input:focus, .field select:focus {
+      border-color: var(--accent); background: #fff;
+      box-shadow: 0 0 0 3px rgba(26,86,232,.1);
+    }
+    .field input.invalid, .field select.invalid { border-color: var(--danger); }
+    .field input::placeholder { color: var(--text-muted); }
+    .field .field-error { font-size: 12px; color: var(--danger); display: none; }
+    .field .field-error.visible { display: block; }
+
+    .select-wrap { position: relative; }
+    .select-wrap select { padding-right: 36px; }
+    .select-wrap::after {
+      content: ''; position: absolute; right: 12px; top: 50%;
+      transform: translateY(-50%); width: 0; height: 0;
+      border-left: 4px solid transparent; border-right: 4px solid transparent;
+      border-top: 5px solid var(--text-muted); pointer-events: none;
+    }
+
+    /* ─── BUTTONS ────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      padding: 10px 20px; border: none; border-radius: var(--radius-sm);
+      font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: background var(--transition), transform var(--transition), box-shadow var(--transition), opacity var(--transition);
+      white-space: nowrap;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(26,86,232,.25); }
+    .btn-primary:hover:not(:disabled) { background: #1245cc; box-shadow: 0 4px 12px rgba(26,86,232,.35); }
+    .btn-success { background: var(--accent-2); color: #fff; box-shadow: 0 2px 8px rgba(14,163,113,.25); }
+    .btn-success:hover:not(:disabled) { background: #0b8a5e; }
+    .btn-sm { padding: 7px 14px; font-size: 13px; }
+    .btn-danger { background: var(--danger-soft); color: var(--danger); }
+    .btn-danger:hover:not(:disabled) { background: #fde8e8; }
+
+    /* ─── LISTS ──────────────────────────────────────────────── */
+    .list-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
+    .list-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+    .list-title { font-size: 14px; font-weight: 700; }
+
+    .list-empty { text-align: center; padding: 48px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .list-empty-icon { font-size: 36px; opacity: .35; }
+    .list-empty-text { font-size: 14px; color: var(--text-muted); font-weight: 500; }
+
+    .transaction-list { list-style: none; }
+    .transaction-item {
+      display: flex; align-items: center; gap: 14px;
+      padding: 13px 20px; border-bottom: 1px solid var(--border);
+      transition: background var(--transition);
+    }
+    .transaction-item:last-child { border-bottom: none; }
+    .transaction-item:hover { background: var(--surface-2); }
+    .txn-icon { width: 36px; height: 36px; flex-shrink: 0; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .txn-info { flex: 1; min-width: 0; }
+    .txn-source { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .txn-meta   { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .txn-amount { font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 700; white-space: nowrap; }
+    .txn-amount.income  { color: var(--accent-2); }
+    .txn-amount.expense { color: var(--danger); }
+    .txn-del { background: none; border: none; cursor: pointer; font-size: 14px; color: var(--text-muted); padding: 4px 6px; border-radius: var(--radius-sm); opacity: 0; transition: background var(--transition), color var(--transition), opacity var(--transition); }
+    .transaction-item:hover .txn-del { opacity: 1; }
+    .txn-del:hover { background: var(--danger-soft); color: var(--danger); }
+
+    /* ─── PROGRESS BAR ───────────────────────────────────────── */
+    .progress-bar { height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; margin: 8px 0; }
+    .progress-fill { height: 100%; border-radius: 99px; background: var(--accent); transition: width .6s cubic-bezier(.4,0,.2,1); }
+    .progress-fill.green { background: var(--accent-2); }
+    .progress-fill.red   { background: var(--danger); }
+    .progress-fill.amber { background: var(--warning); }
+
+    /* ─── BUDGET CARD ────────────────────────────────────────── */
+    .budget-item { padding: 14px 0; border-bottom: 1px solid var(--border); }
+    .budget-item:last-child { border-bottom: none; }
+    .budget-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .budget-category { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .budget-category-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+    .budget-amounts { font-size: 13px; color: var(--text-secondary); font-family: 'DM Mono', monospace; }
+    .budget-pct { font-size: 12px; font-weight: 700; color: var(--text-muted); }
+
+    /* ─── EMI ────────────────────────────────────────────────── */
+    .emi-item { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+    .emi-item:last-child { border-bottom: none; }
+    .emi-icon { width: 38px; height: 38px; border-radius: var(--radius-sm); background: var(--accent-soft); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .emi-info { flex: 1; min-width: 0; }
+    .emi-name { font-size: 14px; font-weight: 600; }
+    .emi-date { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .emi-amount { font-family: 'DM Mono', monospace; font-size: 15px; font-weight: 700; }
+    .emi-amount.due { color: var(--danger); }
+    .emi-due-badge { display: inline-flex; align-items: center; gap: 4px; background: var(--danger-soft); color: var(--danger); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; margin-top: 3px; }
+
+    /* ─── GOALS ──────────────────────────────────────────────── */
+    .goal-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px 22px; box-shadow: var(--shadow-sm); transition: box-shadow var(--transition); margin-bottom: 12px; }
+    .goal-card:hover { box-shadow: var(--shadow); }
+    .goal-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
+    .goal-name { font-size: 15px; font-weight: 700; }
+    .goal-timeline { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+    .goal-amounts { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-secondary); margin-top: 10px; }
+
+    /* ─── ADVISOR ────────────────────────────────────────────── */
+    .score-ring-wrap { display: flex; flex-direction: column; align-items: center; padding: 28px 0 18px; }
+    .score-ring { width: 110px; height: 110px; position: relative; display: flex; align-items: center; justify-content: center; }
+    .score-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+    .score-ring-bg   { fill: none; stroke: var(--border); stroke-width: 8; }
+    .score-ring-fill { fill: none; stroke: var(--accent); stroke-width: 8; stroke-linecap: round; stroke-dasharray: 314; stroke-dashoffset: 314; transition: stroke-dashoffset 1s cubic-bezier(.4,0,.2,1); }
+    .score-ring-fill.green { stroke: var(--accent-2); }
+    .score-ring-fill.amber { stroke: var(--warning); }
+    .score-ring-fill.red   { stroke: var(--danger); }
+    .score-number { font-size: 26px; font-weight: 800; font-family: 'DM Mono', monospace; position: relative; z-index: 1; }
+    .score-label  { font-size: 13px; font-weight: 600; color: var(--text-muted); margin-top: 10px; }
+    .score-status { font-size: 14px; font-weight: 700; margin-top: 4px; }
+
+    .tip-list { list-style: none; }
+    .tip-item { display: flex; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--border); }
+    .tip-item:last-child { border-bottom: none; }
+    .tip-num { width: 22px; height: 22px; flex-shrink: 0; background: var(--accent-soft); color: var(--accent); border-radius: 50%; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+    .tip-text { font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
+
+    .invest-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .invest-item { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+    .invest-label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+    .invest-value { font-size: 15px; font-weight: 700; margin-top: 4px; }
+
+    /* ─── DASHBOARD ──────────────────────────────────────────── */
+    .overview-section { margin-bottom: 24px; }
+    .budget-status-bar { display: flex; flex-direction: column; gap: 4px; padding: 18px 0; }
+    .bsb-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; }
+    .bsb-total     { font-weight: 700; font-family: 'DM Mono', monospace; }
+    .bsb-remaining { font-weight: 600; color: var(--accent-2); font-family: 'DM Mono', monospace; }
+    .savings-flex  { display: flex; align-items: center; gap: 24px; padding: 12px 0; }
+
+    .alert-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--danger-soft); border-radius: var(--radius); border: 1px solid #fca5a5; margin-bottom: 8px; }
+    .alert-item:last-child { margin-bottom: 0; }
+    .alert-icon   { font-size: 18px; flex-shrink: 0; }
+    .alert-text   { flex: 1; }
+    .alert-name   { font-size: 14px; font-weight: 700; }
+    .alert-detail { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .alert-amount { font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 700; color: var(--danger); }
+
+    /* ─── MOBILE OVERLAY ─────────────────────────────────────── */
+    #sidebar-overlay { display: none; position: fixed; inset: 0; z-index: 99; background: rgba(0,0,0,.4); }
+
+    /* ─── RESPONSIVE ─────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      :root { --nav-w: 200px; }
+      .two-col { grid-template-columns: 1fr; }
+      .three-col { grid-template-columns: 1fr 1fr; }
+      .invest-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 720px) {
+      :root { --nav-w: 240px; }
+      #sidebar { transform: translateX(calc(-1 * var(--nav-w))); box-shadow: none; }
+      #sidebar.open { transform: translateX(0); box-shadow: var(--shadow-lg); }
+      #sidebar-overlay { display: block; opacity: 0; pointer-events: none; transition: opacity .25s; }
+      #sidebar-overlay.visible { opacity: 1; pointer-events: auto; }
+      #main { margin-left: 0; }
+      #menu-toggle { display: flex; }
+      #content { padding: 16px; }
+      .stat-grid { grid-template-columns: 1fr 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+      .form-grid .span-2 { grid-column: unset; }
+      .three-col { grid-template-columns: 1fr; }
+      #toast-container { left: 16px; right: 16px; bottom: 16px; }
+    }
+    @media (max-width: 420px) {
+      .stat-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- LOADING OVERLAY -->
+<div id="loading-overlay">
+  <div class="loader-logo">💰</div>
+  <div class="loader-bar"><div class="loader-bar-fill"></div></div>
+  <div class="loader-text" id="loader-text">Initialising…</div>
+</div>
+
+<!-- TOAST -->
+<div id="toast-container"></div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     AUTH SCREEN
+══════════════════════════════════════════════════════════ -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">💰</div>
+      <div>
+        <div class="auth-logo-text">FinancePad</div>
+        <div class="auth-logo-sub">Personal Finance Dashboard</div>
+      </div>
+    </div>
+
+    <div class="auth-tabs" role="tablist">
+      <button class="auth-tab active" id="tab-login-btn"  onclick="switchAuthTab('login')"  role="tab">Sign In</button>
+      <button class="auth-tab"        id="tab-signup-btn" onclick="switchAuthTab('signup')" role="tab">Create Account</button>
+    </div>
+
+    <div id="auth-error" class="auth-err"></div>
+
+    <!-- LOGIN FORM -->
+    <form class="auth-form" id="login-form" onsubmit="handleLogin(event)" novalidate>
+      <div class="field">
+        <label for="login-email">Email address</label>
+        <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email" />
+        <span class="field-error" id="login-email-err">Please enter a valid email.</span>
+      </div>
+      <div class="field">
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password" placeholder="Your password" autocomplete="current-password" />
+        <span class="field-error" id="login-pw-err">Password cannot be empty.</span>
+      </div>
+      <button type="submit" class="auth-btn" id="login-btn">Sign In →</button>
+    </form>
+
+    <!-- SIGNUP FORM -->
+    <form class="auth-form" id="signup-form" onsubmit="handleSignup(event)" novalidate style="display:none">
+      <div class="field">
+        <label for="signup-email">Email address</label>
+        <input type="email" id="signup-email" placeholder="you@example.com" autocomplete="email" />
+        <span class="field-error" id="signup-email-err">Please enter a valid email.</span>
+      </div>
+      <div class="field">
+        <label for="signup-password">Password</label>
+        <input type="password" id="signup-password" placeholder="Min 8 characters" autocomplete="new-password" oninput="checkPasswordStrength(this.value)" />
+        <div class="pw-strength">
+          <div class="pw-strength-bar"><div class="pw-strength-fill" id="pw-strength-fill"></div></div>
+          <div class="pw-strength-label" id="pw-strength-label"></div>
+        </div>
+        <span class="field-error" id="signup-pw-err">Password must be at least 8 characters.</span>
+      </div>
+      <div class="field">
+        <label for="signup-confirm">Confirm password</label>
+        <input type="password" id="signup-confirm" placeholder="Repeat password" autocomplete="new-password" />
+        <span class="field-error" id="signup-confirm-err">Passwords do not match.</span>
+      </div>
+      <button type="submit" class="auth-btn" id="signup-btn">Create Account →</button>
+    </form>
+  </div>
+</div>
+
+<!-- SIDEBAR OVERLAY (mobile) -->
+<div id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<div id="app">
+  <!-- ─── SIDEBAR ─────────────────────────────────── -->
+  <nav id="sidebar">
+    <a class="sidebar-logo" href="#">
+      <div class="sidebar-logo-icon">💰</div>
+      <span class="sidebar-logo-text">FinancePad</span>
+    </a>
+    <div class="sidebar-nav">
+      <div class="nav-label">Overview</div>
+      <button class="nav-btn active" data-tab="dashboard" onclick="showTab('dashboard')">
+        <span class="nav-icon">📊</span> Dashboard
+      </button>
+      <div class="nav-label" style="margin-top:8px">Transactions</div>
+      <button class="nav-btn" data-tab="income"   onclick="showTab('income')">  <span class="nav-icon">💵</span> Income</button>
+      <button class="nav-btn" data-tab="expenses" onclick="showTab('expenses')"><span class="nav-icon">💳</span> Expenses</button>
+      <button class="nav-btn" data-tab="budget"   onclick="showTab('budget')">  <span class="nav-icon">📈</span> Budget</button>
+      <div class="nav-label" style="margin-top:8px">Planning</div>
+      <button class="nav-btn" data-tab="emi"     onclick="showTab('emi')">    <span class="nav-icon">📅</span> EMI Tracker</button>
+      <button class="nav-btn" data-tab="goals"   onclick="showTab('goals')">  <span class="nav-icon">🎯</span> Savings Goals</button>
+      <button class="nav-btn" data-tab="advisor" onclick="showTab('advisor')"><span class="nav-icon">🤖</span> AI Advisor</button>
+    </div>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <div class="user-email" id="user-email">—</div>
+      </div>
+      <button class="logout-btn" onclick="handleLogout()">
+        <span>🚪</span> Sign out
+      </button>
+    </div>
+  </nav>
+
+  <!-- ─── MAIN ───────────────────────────────────── -->
+  <div id="main">
+    <header id="topbar">
+      <button id="menu-toggle" onclick="toggleSidebar()">☰</button>
+      <span class="topbar-title" id="topbar-title">Dashboard</span>
+      <span class="topbar-date" id="topbar-date"></span>
+    </header>
+
+    <div id="content">
+
+      <!-- ════ DASHBOARD ═══════════════════════════════════════ -->
+      <section class="tab-section active" id="tab-dashboard">
+        <div class="page-header">
+          <h1>Overview</h1>
+          <p>Your financial snapshot at a glance</p>
+        </div>
+
+        <div id="db-error-banner" style="display:none;background:var(--danger-soft);border:1px solid #fca5a5;color:var(--danger);border-radius:var(--radius);padding:12px 16px;font-size:13.5px;font-weight:500;margin-bottom:16px;gap:10px;align-items:flex-start">
+          <span>⚠️</span>
+          <div><strong>Database error.</strong> Check your Supabase URL and Anon Key, and ensure tables are created.</div>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-card-icon green">💵</div>
+            <div class="stat-label">Total Income</div>
+            <div class="stat-value green" id="stat-income">₹0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-icon red">💳</div>
+            <div class="stat-label">Total Expenses</div>
+            <div class="stat-value red" id="stat-expenses">₹0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-icon amber">📅</div>
+            <div class="stat-label">EMI Payments</div>
+            <div class="stat-value" id="stat-emi">₹0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-icon blue">🏦</div>
+            <div class="stat-label">Net Savings</div>
+            <div class="stat-value" id="stat-savings">₹0</div>
+          </div>
+        </div>
+
+        <div class="two-col overview-section">
+          <div class="card">
+            <div class="section-header" style="margin-bottom:0">
+              <div>
+                <div class="section-title">💼 Budget Status</div>
+                <div class="section-subtitle">Monthly allocation</div>
+              </div>
+            </div>
+            <div class="budget-status-bar">
+              <div class="bsb-row">
+                <span>Total Budget</span>
+                <span class="bsb-total" id="db-total-budget">₹0</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" id="db-budget-fill" style="width:0%"></div>
+              </div>
+              <div class="bsb-row" style="margin-bottom:0">
+                <span id="db-budget-pct">0% used</span>
+                <span class="bsb-remaining" id="db-budget-remaining">₹0 remaining</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="section-title">📊 Savings Rate</div>
+            <div class="savings-flex">
+              <div class="score-ring">
+                <svg viewBox="0 0 110 110" width="110" height="110">
+                  <circle class="score-ring-bg" cx="55" cy="55" r="50" />
+                  <circle class="score-ring-fill green" id="savings-ring-fill" cx="55" cy="55" r="50" />
+                </svg>
+                <span class="score-number" id="savings-rate-num">0%</span>
+              </div>
+              <div>
+                <div style="font-size:13px;color:var(--text-muted);margin-bottom:4px">Current rate</div>
+                <div style="font-size:22px;font-weight:800;font-family:'DM Mono',monospace" id="savings-rate-display">0%</div>
+                <div style="font-size:13px;color:var(--text-muted);margin-top:6px" id="savings-tagline">Building wealth…</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card overview-section">
+          <div class="section-header">
+            <div class="section-title">🔔 EMI Alerts – Due in Next 5 Days</div>
+          </div>
+          <div id="emi-alerts-list">
+            <div class="list-empty"><div class="list-empty-icon">🎉</div><div class="list-empty-text">No EMIs due in the next 5 days</div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-header">
+            <div class="section-title">💎 Savings Goals</div>
+            <button class="btn btn-sm btn-primary" onclick="showTab('goals')">View All</button>
+          </div>
+          <div id="dash-goals-list">
+            <div class="list-empty"><div class="list-empty-icon">🎯</div><div class="list-empty-text">No savings goals yet</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════ INCOME ══════════════════════════════════════════ -->
+      <section class="tab-section" id="tab-income">
+        <div class="page-header"><h1>Income</h1><p>Track all your income sources</p></div>
+        <div class="two-col">
+          <div class="form-card">
+            <div class="form-title">💵 Add Income</div>
+            <form id="income-form" onsubmit="addIncome(event)" novalidate>
+              <div class="form-grid">
+                <div class="field span-2">
+                  <label for="income-date">Date</label>
+                  <input type="date" id="income-date" required />
+                  <span class="field-error" id="income-date-err">Date is required.</span>
+                </div>
+                <div class="field">
+                  <label for="income-source">Source</label>
+                  <input type="text" id="income-source" placeholder="e.g. Salary, Freelance" required maxlength="100" />
+                  <span class="field-error" id="income-source-err">Source is required.</span>
+                </div>
+                <div class="field">
+                  <label for="income-amount">Amount (₹)</label>
+                  <input type="number" id="income-amount" placeholder="0.00" min="0.01" step="0.01" required />
+                  <span class="field-error" id="income-amount-err">Enter a valid positive amount.</span>
+                </div>
+                <div class="field span-2">
+                  <label for="income-desc">Description</label>
+                  <input type="text" id="income-desc" placeholder="Optional note" maxlength="200" />
+                </div>
+              </div>
+              <button type="submit" class="btn btn-success" style="margin-top:16px;width:100%" id="income-submit-btn">Add Income</button>
+            </form>
+          </div>
+          <div class="list-card">
+            <div class="list-header"><span class="list-title">📋 Income History</span></div>
+            <ul class="transaction-list" id="income-list">
+              <li><div class="list-empty"><div class="list-empty-icon">💵</div><div class="list-empty-text">No income recorded yet</div></div></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════ EXPENSES ════════════════════════════════════════ -->
+      <section class="tab-section" id="tab-expenses">
+        <div class="page-header"><h1>Expenses</h1><p>Monitor where your money goes</p></div>
+        <div class="two-col">
+          <div class="form-card">
+            <div class="form-title">💳 Add Expense</div>
+            <form id="expense-form" onsubmit="addExpense(event)" novalidate>
+              <div class="form-grid">
+                <div class="field">
+                  <label for="expense-date">Date</label>
+                  <input type="date" id="expense-date" required />
+                  <span class="field-error" id="expense-date-err">Date is required.</span>
+                </div>
+                <div class="field">
+                  <label for="expense-category">Category</label>
+                  <div class="select-wrap">
+                    <select id="expense-category" required>
+                      <option value="" disabled selected>Select category</option>
+                      <option>Groceries</option><option>Transportation</option>
+                      <option>Dining Out</option><option>Utilities</option>
+                      <option>Entertainment</option><option>Healthcare</option>
+                      <option>Shopping</option><option>Other</option>
+                    </select>
+                  </div>
+                  <span class="field-error" id="expense-cat-err">Please select a category.</span>
+                </div>
+                <div class="field">
+                  <label for="expense-amount">Amount (₹)</label>
+                  <input type="number" id="expense-amount" placeholder="0.00" min="0.01" step="0.01" required />
+                  <span class="field-error" id="expense-amount-err">Enter a valid positive amount.</span>
+                </div>
+                <div class="field">
+                  <label for="expense-method">Payment Method</label>
+                  <div class="select-wrap">
+                    <select id="expense-method">
+                      <option>Cash</option><option>Credit Card</option>
+                      <option>Debit Card</option><option>UPI</option>
+                      <option>Net Banking</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="field span-2">
+                  <label for="expense-desc">Description</label>
+                  <input type="text" id="expense-desc" placeholder="Optional note" maxlength="200" />
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary" style="margin-top:16px;width:100%" id="expense-submit-btn">Add Expense</button>
+            </form>
+          </div>
+          <div class="list-card">
+            <div class="list-header"><span class="list-title">📋 Expense History</span></div>
+            <ul class="transaction-list" id="expense-list">
+              <li><div class="list-empty"><div class="list-empty-icon">💳</div><div class="list-empty-text">No expenses recorded yet</div></div></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════ BUDGET ══════════════════════════════════════════ -->
+      <section class="tab-section" id="tab-budget">
+        <div class="page-header"><h1>Budget</h1><p>Set limits and track spending per category</p></div>
+        <div class="two-col">
+          <div class="form-card">
+            <div class="form-title">📈 Set Monthly Budget</div>
+            <form id="budget-form" onsubmit="setBudget(event)" novalidate>
+              <div class="form-grid">
+                <div class="field">
+                  <label for="budget-category">Category</label>
+                  <div class="select-wrap">
+                    <select id="budget-category" required>
+                      <option>Groceries</option><option>Transportation</option>
+                      <option>Dining Out</option><option>Utilities</option>
+                      <option>Entertainment</option><option>Healthcare</option>
+                      <option>Shopping</option><option>Other</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="budget-amount">Monthly Budget (₹)</label>
+                  <input type="number" id="budget-amount" placeholder="0.00" min="0.01" step="0.01" required />
+                  <span class="field-error" id="budget-amount-err">Enter a valid positive amount.</span>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary" style="margin-top:16px;width:100%" id="budget-submit-btn">Set Budget</button>
+            </form>
+          </div>
+          <div class="card">
+            <div class="section-title" style="margin-bottom:16px">📊 Budget vs Actual</div>
+            <div id="budget-vs-actual">
+              <div class="list-empty"><div class="list-empty-icon">📊</div><div class="list-empty-text">Set a budget to see comparisons</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════ EMI ═════════════════════════════════════════════ -->
+      <section class="tab-section" id="tab-emi">
+        <div class="page-header"><h1>EMI Tracker</h1><p>Manage loans and recurring payments</p></div>
+        <div style="background:var(--warning-soft);border:1px solid var(--warning);border-radius:var(--radius);padding:12px 16px;margin-bottom:20px;font-size:13.5px;color:#92400e;font-weight:500;display:flex;gap:10px;align-items:center">
+          <span>⚠️</span> EMI alerts highlight payments due within 5 days on the Dashboard.
+        </div>
+        <div class="two-col">
+          <div class="form-card">
+            <div class="form-title">📅 Add EMI</div>
+            <form id="emi-form" onsubmit="addEMI(event)" novalidate>
+              <div class="form-grid">
+                <div class="field span-2">
+                  <label for="emi-name">EMI Name</label>
+                  <input type="text" id="emi-name" placeholder="e.g. Home Loan, Car Loan" required maxlength="100" />
+                  <span class="field-error" id="emi-name-err">EMI name is required.</span>
+                </div>
+                <div class="field">
+                  <label for="emi-date">Next Payment Date</label>
+                  <input type="date" id="emi-date" required />
+                  <span class="field-error" id="emi-date-err">Date is required.</span>
+                </div>
+                <div class="field">
+                  <label for="emi-monthly">Monthly EMI (₹)</label>
+                  <input type="number" id="emi-monthly" placeholder="0.00" min="0.01" step="0.01" required />
+                  <span class="field-error" id="emi-monthly-err">Enter a valid amount.</span>
+                </div>
+                <div class="field span-2">
+                  <label for="emi-principal">Principal Amount (₹)</label>
+                  <input type="number" id="emi-principal" placeholder="0.00" min="0.01" step="0.01" required />
+                  <span class="field-error" id="emi-principal-err">Enter a valid amount.</span>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary" style="margin-top:16px;width:100%" id="emi-submit-btn">Add EMI</button>
+            </form>
+          </div>
+          <div class="list-card">
+            <div class="list-header"><span class="list-title">📋 EMI List</span></div>
+            <div id="emi-list" style="padding:0 20px">
+              <div class="list-empty"><div class="list-empty-icon">📅</div><div class="list-empty-text">No EMIs added yet</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════ SAVINGS GOALS ═══════════════════════════════════ -->
+      <section class="tab-section" id="tab-goals">
+        <div class="page-header"><h1>Savings Goals</h1><p>Set targets and track your progress</p></div>
+        <div class="two-col" style="margin-bottom:24px">
+          <div class="form-card">
+            <div class="form-title">🎯 Add Savings Goal</div>
+            <form id="goal-form" onsubmit="addGoal(event)" novalidate>
+              <div class="form-grid">
+                <div class="field span-2">
+                  <label for="goal-name">Goal Name</label>
+                  <input type="text" id="goal-name" placeholder="e.g. Emergency Fund, New Car" required maxlength="100" />
+                  <span class="field-error" id="goal-name-err">Goal name is required.</span>
+                </div>
+                <div class="field">
+                  <label for="goal-target">Target Amount (₹)</label>
+                  <input type="number" id="goal-target" placeholder="0.00" min="0.01" step="0.01" required />
+                  <span class="field-error" id="goal-target-err">Enter a valid positive target.</span>
+                </div>
+                <div class="field">
+                  <label for="goal-current">Current Saved (₹)</label>
+                  <input type="number" id="goal-current" placeholder="0.00" min="0" step="0.01" />
+                </div>
+                <div class="field span-2">
+                  <label for="goal-monthly">Monthly Saving (₹)</label>
+                  <input type="number" id="goal-monthly" placeholder="0.00" min="0" step="0.01" />
+                </div>
+              </div>
+              <button type="submit" class="btn btn-success" style="margin-top:16px;width:100%" id="goal-submit-btn">Add Goal</button>
+            </form>
+          </div>
+          <div class="card">
+            <div class="section-title" style="margin-bottom:16px">💎 Your Goals</div>
+            <div id="goals-list-inline">
+              <div class="list-empty"><div class="list-empty-icon">🎯</div><div class="list-empty-text">No goals yet. Start one!</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════ AI ADVISOR ═══════════════════════════════════════ -->
+      <section class="tab-section" id="tab-advisor">
+        <div class="page-header"><h1>AI Advisor</h1><p>Personalised financial insights</p></div>
+        <div class="three-col">
+          <div class="card" style="grid-column:1">
+            <div class="section-title">🤖 Health Score</div>
+            <div class="score-ring-wrap">
+              <div class="score-ring">
+                <svg viewBox="0 0 110 110" width="110" height="110">
+                  <circle class="score-ring-bg" cx="55" cy="55" r="50" />
+                  <circle class="score-ring-fill" id="health-ring-fill" cx="55" cy="55" r="50" />
+                </svg>
+                <span class="score-number" id="health-score-num">—</span>
+              </div>
+              <div class="score-label">Financial Health</div>
+              <div class="score-status" id="health-status">—</div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;border-top:1px solid var(--border);padding-top:12px">
+              <span style="color:var(--text-muted)">Savings Rate</span>
+              <span style="font-weight:700;font-family:'DM Mono',monospace" id="advisor-savings-rate">0%</span>
+            </div>
+          </div>
+          <div class="card" style="grid-column:span 2">
+            <div class="section-title" style="margin-bottom:12px">💡 Budget Optimisation</div>
+            <div id="budget-suggestions">
+              <div class="list-empty" style="padding:24px"><div class="list-empty-icon">💡</div><div class="list-empty-text">Add income and expenses to get suggestions</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="two-col" style="margin-top:20px">
+          <div class="card">
+            <div class="section-title" style="margin-bottom:14px">💰 Investment Opportunities</div>
+            <div class="invest-grid">
+              <div class="invest-item"><div class="invest-label">SIP (Mutual Funds)</div><div class="invest-value">Start ₹500/mo</div></div>
+              <div class="invest-item"><div class="invest-label">PPF (15-yr Lock)</div><div class="invest-value">₹500 – ₹1.5L/yr</div></div>
+              <div class="invest-item"><div class="invest-label">NPS</div><div class="invest-value">Tax benefit u/s 80C</div></div>
+              <div class="invest-item"><div class="invest-label">FD</div><div class="invest-value">~7% p.a.</div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="section-title" style="margin-bottom:12px">📈 Wealth Building Tips</div>
+            <ul class="tip-list">
+              <li class="tip-item"><span class="tip-num">1</span><span class="tip-text"><strong>50-30-20 Rule:</strong> 50% Needs · 30% Wants · 20% Savings</span></li>
+              <li class="tip-item"><span class="tip-num">2</span><span class="tip-text"><strong>Emergency Fund:</strong> Keep 6 months of expenses liquid</span></li>
+              <li class="tip-item"><span class="tip-num">3</span><span class="tip-text"><strong>Start Early:</strong> ₹500/month SIP can compound significantly</span></li>
+              <li class="tip-item"><span class="tip-num">4</span><span class="tip-text"><strong>Clear High-Interest Debt:</strong> Prioritise expensive loans first</span></li>
+              <li class="tip-item"><span class="tip-num">5</span><span class="tip-text"><strong>Review Monthly:</strong> Adjust budgets based on patterns</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     APPLICATION — CONFIG, AUTH, DATA, RENDER
+═══════════════════════════════════════════════════════════ -->
+<script type="module">
+
+/* ── 1. CONFIGURATION ──────────────────────────────────────────────────
+   Replace with your actual Supabase project URL and anon key.
+   Find them at: Supabase Dashboard → Project Settings → API
+   ──────────────────────────────────────────────────────────────────── */
+const SUPABASE_URL  = 'YOUR_SUPABASE_URL';      // e.g. https://xxxx.supabase.co
+const SUPABASE_ANON = 'YOUR_SUPABASE_ANON_KEY'; // starts with eyJ...
+
+
+/* ── 2. SUPABASE CLIENT ───────────────────────────────────────────────*/
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+let supabase = null;
+let currentUser = null;
+
+try {
+  supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
+    auth: {
+      persistSession: true,        // keeps login across page reloads
+      autoRefreshToken: true,      // silently refreshes JWT before expiry
+      detectSessionInUrl: true,    // handles magic-link flows
+    }
+  });
+} catch (err) {
+  console.error('[FinancePad] Supabase init failed:', err);
+}
+
+const isConfigured = SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON !== 'YOUR_SUPABASE_ANON_KEY';
+
+
+/* ── 3. CONSTANTS ─────────────────────────────────────────────────────*/
+const EXPENSE_CATEGORIES = ['Groceries','Transportation','Dining Out','Utilities','Entertainment','Healthcare','Shopping','Other'];
+const PAYMENT_METHODS    = ['Cash','Credit Card','Debit Card','UPI','Net Banking'];
+const BUDGET_COLORS      = ['#1a56e8','#0ea371','#f59e0b','#e84040','#8b5cf6','#06b6d4','#ec4899','#64748b'];
+
+
+/* ── 4. UTILITY FUNCTIONS ─────────────────────────────────────────────*/
+const fmt     = n  => '₹' + Number(n).toLocaleString('en-IN', {minimumFractionDigits:0, maximumFractionDigits:2});
+const fmtDate = d  => d ? new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '';
+const catEmoji = c => ({'Groceries':'🛒','Transportation':'🚌','Dining Out':'🍽️','Utilities':'💡','Entertainment':'🎬','Healthcare':'🏥','Shopping':'🛍️','Other':'📦','Salary':'💼','Freelance':'💻','Business':'📊','Investment':'📈','Gift':'🎁'}[c] || '💰');
+
+function toast(msg, type = 'default', duration = 3200) {
+  const icons = { success:'✅', error:'❌', warning:'⚠️', default:'ℹ️' };
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${icons[type]||icons.default}</span><span>${msg}</span>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => {
+    el.style.opacity = '0'; el.style.transform = 'translateY(8px)';
+    setTimeout(() => el.remove(), 300);
+  }, duration);
+}
+
+function setLoaderText(t) {
+  const el = document.getElementById('loader-text');
+  if (el) el.textContent = t;
+}
+
+function hideLoader() {
+  const lo = document.getElementById('loading-overlay');
+  if (!lo) return;
+  lo.classList.add('hidden');
+  setTimeout(() => lo.remove(), 500);
+}
+
+function setDateDefaults() {
+  const today = new Date().toISOString().split('T')[0];
+  ['income-date','expense-date','emi-date'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el.value) el.value = today;
+  });
+  const d = document.getElementById('topbar-date');
+  if (d) d.textContent = new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'long',year:'numeric'});
+}
+
+
+/* ── 5. VALIDATION HELPERS ────────────────────────────────────────────*/
+function showFieldError(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg || el.textContent;
+  el.classList.add('visible');
+  // highlight the associated input
+  const field = el.closest('.field');
+  if (field) {
+    const inp = field.querySelector('input, select');
+    if (inp) inp.classList.add('invalid');
+  }
+}
+function clearFieldErrors(formId) {
+  const form = document.getElementById(formId);
+  if (!form) return;
+  form.querySelectorAll('.field-error').forEach(e => e.classList.remove('visible'));
+  form.querySelectorAll('.invalid').forEach(e => e.classList.remove('invalid'));
+}
+
+function validatePositiveNumber(val, min = 0.01) {
+  const n = parseFloat(val);
+  return !isNaN(n) && n >= min;
+}
+function validateNotEmpty(val) {
+  return typeof val === 'string' && val.trim().length > 0;
+}
+function validateEmail(val) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
+}
+function validateCategory(val) {
+  return EXPENSE_CATEGORIES.includes(val);
+}
+
+
+/* ── 6. AUTH UI ───────────────────────────────────────────────────────*/
+
+// Make auth functions globally accessible since they're called from HTML
+window.switchAuthTab = function(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('login-form').style.display  = isLogin ? 'flex' : 'none';
+  document.getElementById('signup-form').style.display = isLogin ? 'none' : 'flex';
+  document.getElementById('tab-login-btn').classList.toggle('active', isLogin);
+  document.getElementById('tab-signup-btn').classList.toggle('active', !isLogin);
+  document.getElementById('auth-error').classList.remove('visible');
+  document.getElementById('auth-error').textContent = '';
+};
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+
+function showAuthScreen() {
+  document.getElementById('auth-screen').classList.add('visible');
+  document.getElementById('app').style.visibility = 'hidden';
+}
+
+function hideAuthScreen() {
+  document.getElementById('auth-screen').classList.remove('visible');
+  document.getElementById('app').style.visibility = 'visible';
+}
+
+window.checkPasswordStrength = function(pw) {
+  const fill  = document.getElementById('pw-strength-fill');
+  const label = document.getElementById('pw-strength-label');
+  if (!fill || !label) return;
+  let score = 0;
+  if (pw.length >= 8)  score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^a-zA-Z0-9]/.test(pw)) score++;
+  const levels = [
+    {pct:'20%', color:'var(--danger)',  lbl:'Very weak'},
+    {pct:'40%', color:'var(--warning)', lbl:'Weak'},
+    {pct:'60%', color:'var(--warning)', lbl:'Fair'},
+    {pct:'80%', color:'var(--accent)',  lbl:'Good'},
+    {pct:'100%',color:'var(--accent-2)',lbl:'Strong 🔒'},
+  ];
+  const lvl = levels[Math.max(0, Math.min(score-1, 4))];
+  fill.style.width      = pw.length ? lvl.pct : '0%';
+  fill.style.background = lvl.color;
+  label.textContent     = pw.length ? lvl.lbl : '';
+};
+
+window.handleLogin = async function(e) {
+  e.preventDefault();
+  const email = document.getElementById('login-email').value.trim();
+  const pw    = document.getElementById('login-password').value;
+  document.getElementById('auth-error').classList.remove('visible');
+
+  let valid = true;
+  if (!validateEmail(email)) {
+    showFieldError('login-email-err'); valid = false;
+  }
+  if (!pw) {
+    showFieldError('login-pw-err'); valid = false;
+  }
+  if (!valid) return;
+
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true; btn.textContent = 'Signing in…';
+
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pw });
+    if (error) throw error;
+    // onAuthStateChange handler will take over from here
+  } catch (err) {
+    showAuthError(friendlyAuthError(err.message));
+  } finally {
+    btn.disabled = false; btn.textContent = 'Sign In →';
+  }
+};
+
+window.handleSignup = async function(e) {
+  e.preventDefault();
+  const email   = document.getElementById('signup-email').value.trim();
+  const pw      = document.getElementById('signup-password').value;
+  const confirm = document.getElementById('signup-confirm').value;
+  document.getElementById('auth-error').classList.remove('visible');
+
+  let valid = true;
+  if (!validateEmail(email))       { showFieldError('signup-email-err'); valid = false; }
+  if (pw.length < 8)               { showFieldError('signup-pw-err');    valid = false; }
+  if (pw !== confirm)              { showFieldError('signup-confirm-err'); valid = false; }
+  if (!valid) return;
+
+  const btn = document.getElementById('signup-btn');
+  btn.disabled = true; btn.textContent = 'Creating account…';
+
+  try {
+    const { data, error } = await supabase.auth.signUp({ email, password: pw });
+    if (error) throw error;
+    if (data.user && !data.session) {
+      // email confirmation required
+      showAuthError('✉️ Check your email to confirm your account, then sign in.');
+      window.switchAuthTab('login');
+    }
+    // if session returned, onAuthStateChange will handle it
+  } catch (err) {
+    showAuthError(friendlyAuthError(err.message));
+  } finally {
+    btn.disabled = false; btn.textContent = 'Create Account →';
+  }
+};
+
+window.handleLogout = async function() {
+  try {
+    await supabase.auth.signOut();
+    // onAuthStateChange handles the rest
+  } catch (err) {
+    toast('Logout error: ' + err.message, 'error');
+  }
+};
+
+function friendlyAuthError(msg) {
+  if (!msg) return 'Something went wrong. Please try again.';
+  const m = msg.toLowerCase();
+  if (m.includes('invalid login') || m.includes('invalid credentials')) return 'Incorrect email or password.';
+  if (m.includes('email not confirmed'))  return 'Please confirm your email first.';
+  if (m.includes('user already registered')) return 'An account with this email already exists.';
+  if (m.includes('password should be'))   return 'Password must be at least 6 characters.';
+  if (m.includes('rate limit'))           return 'Too many attempts. Please wait a moment.';
+  return msg;
+}
+
+function updateSidebarUser(user) {
+  const email  = user?.email || '—';
+  const avatar = email !== '—' ? email[0].toUpperCase() : '?';
+  const emailEl  = document.getElementById('user-email');
+  const avatarEl = document.getElementById('user-avatar');
+  if (emailEl)  emailEl.textContent  = email;
+  if (avatarEl) avatarEl.textContent = avatar;
+}
+
+
+/* ── 7. DATABASE LAYER ────────────────────────────────────────────────
+   Every query automatically scopes to currentUser.id.
+   RLS on Supabase enforces this at the DB level too (defense-in-depth).
+   ──────────────────────────────────────────────────────────────────── */
+
+async function dbFetch(table) {
+  if (!supabase || !currentUser) return [];
+  const { data, error } = await supabase
+    .from(table)
+    .select('*')
+    .eq('user_id', currentUser.id)   // explicit filter (belt-and-suspenders with RLS)
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error(`[dbFetch:${table}]`, error.message);
+    return [];
+  }
+  return data;
+}
+
+async function dbInsert(table, row) {
+  if (!supabase || !currentUser) throw new Error('Not authenticated');
+  const payload = { ...row, user_id: currentUser.id };
+  const { data, error } = await supabase
+    .from(table)
+    .insert([payload])
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+async function dbDelete(table, id) {
+  if (!supabase || !currentUser) throw new Error('Not authenticated');
+  const { error } = await supabase
+    .from(table)
+    .delete()
+    .eq('id', id)
+    .eq('user_id', currentUser.id);  // extra safety: can only delete own rows
+  if (error) throw new Error(error.message);
+}
+
+async function dbUpsertBudget(category, budget_amount) {
+  if (!supabase || !currentUser) throw new Error('Not authenticated');
+  const { data, error } = await supabase
+    .from('budgets')
+    .upsert(
+      { user_id: currentUser.id, category, budget_amount },
+      { onConflict: 'user_id,category' }  // uses the UNIQUE constraint
+    )
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+
+/* ── 8. NAVIGATION ────────────────────────────────────────────────────*/
+const tabTitles = {
+  dashboard:'Dashboard', income:'Income', expenses:'Expenses',
+  budget:'Budget', emi:'EMI Tracker', goals:'Savings Goals', advisor:'AI Advisor'
+};
+
+window.showTab = function(tab) {
+  document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab)?.classList.add('active');
+  document.querySelector(`[data-tab="${tab}"]`)?.classList.add('active');
+  const t = document.getElementById('topbar-title');
+  if (t) t.textContent = tabTitles[tab];
+  closeSidebar();
+};
+
+window.toggleSidebar = function() {
+  document.getElementById('sidebar')?.classList.toggle('open');
+  document.getElementById('sidebar-overlay')?.classList.toggle('visible');
+};
+window.closeSidebar = function() {
+  document.getElementById('sidebar')?.classList.remove('open');
+  document.getElementById('sidebar-overlay')?.classList.remove('visible');
+};
+
+
+/* ── 9. INCOME ────────────────────────────────────────────────────────*/
+window.addIncome = async function(e) {
+  e.preventDefault();
+  clearFieldErrors('income-form');
+
+  const date   = document.getElementById('income-date').value;
+  const source = document.getElementById('income-source').value.trim();
+  const amount = document.getElementById('income-amount').value;
+  const desc   = document.getElementById('income-desc').value.trim();
+
+  let valid = true;
+  if (!date)                           { showFieldError('income-date-err');   valid = false; }
+  if (!validateNotEmpty(source))       { showFieldError('income-source-err'); valid = false; }
+  if (!validatePositiveNumber(amount)) { showFieldError('income-amount-err'); valid = false; }
+  if (!valid) return;
+
+  const btn = document.getElementById('income-submit-btn');
+  btn.disabled = true; btn.textContent = 'Adding…';
+  try {
+    await dbInsert('income', { date, source, description: desc, amount: parseFloat(amount) });
+    document.getElementById('income-form').reset();
+    setDateDefaults();
+    toast('Income added', 'success');
+    await refreshAll();
+  } catch (err) {
+    toast('Failed to add income: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Add Income';
+  }
+};
+
+window.deleteIncome = async function(id) {
+  try {
+    await dbDelete('income', id);
+    toast('Income deleted', 'warning');
+    await refreshAll();
+  } catch (err) {
+    toast('Delete failed: ' + err.message, 'error');
+  }
+};
+
+async function renderIncome() {
+  const data = await dbFetch('income');
+  const ul = document.getElementById('income-list');
+  if (!data.length) {
+    ul.innerHTML = `<li><div class="list-empty"><div class="list-empty-icon">💵</div><div class="list-empty-text">No income recorded yet</div></div></li>`;
+    return;
+  }
+  ul.innerHTML = data.map(r => `
+    <li class="transaction-item">
+      <div class="txn-icon" style="background:var(--accent-2-soft)">${catEmoji(r.source)}</div>
+      <div class="txn-info">
+        <div class="txn-source">${escHtml(r.source)}</div>
+        <div class="txn-meta">${fmtDate(r.date)}${r.description ? ' · ' + escHtml(r.description) : ''}</div>
+      </div>
+      <div class="txn-amount income">${fmt(r.amount)}</div>
+      <button class="txn-del" data-id="${r.id}" title="Delete">✕</button>
+    </li>`).join('');
+
+  ul.querySelectorAll('.txn-del').forEach(btn => {
+    btn.addEventListener('click', () => window.deleteIncome(btn.dataset.id));
+  });
+}
+
+
+/* ── 10. EXPENSES ─────────────────────────────────────────────────────*/
+window.addExpense = async function(e) {
+  e.preventDefault();
+  clearFieldErrors('expense-form');
+
+  const date     = document.getElementById('expense-date').value;
+  const category = document.getElementById('expense-category').value;
+  const amount   = document.getElementById('expense-amount').value;
+  const method   = document.getElementById('expense-method').value;
+  const desc     = document.getElementById('expense-desc').value.trim();
+
+  let valid = true;
+  if (!date)                                { showFieldError('expense-date-err');   valid = false; }
+  if (!validateCategory(category))          { showFieldError('expense-cat-err');    valid = false; }
+  if (!validatePositiveNumber(amount))      { showFieldError('expense-amount-err'); valid = false; }
+  if (!valid) return;
+
+  const btn = document.getElementById('expense-submit-btn');
+  btn.disabled = true; btn.textContent = 'Adding…';
+  try {
+    await dbInsert('expenses', {
+      date, category, description: desc,
+      amount: parseFloat(amount), payment_method: method
+    });
+    document.getElementById('expense-form').reset();
+    setDateDefaults();
+    toast('Expense added', 'success');
+    await refreshAll();
+  } catch (err) {
+    toast('Failed to add expense: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Add Expense';
+  }
+};
+
+window.deleteExpense = async function(id) {
+  try {
+    await dbDelete('expenses', id);
+    toast('Expense deleted', 'warning');
+    await refreshAll();
+  } catch (err) {
+    toast('Delete failed: ' + err.message, 'error');
+  }
+};
+
+async function renderExpenses() {
+  const data = await dbFetch('expenses');
+  const ul = document.getElementById('expense-list');
+  if (!data.length) {
+    ul.innerHTML = `<li><div class="list-empty"><div class="list-empty-icon">💳</div><div class="list-empty-text">No expenses recorded yet</div></div></li>`;
+    return;
+  }
+  ul.innerHTML = data.map(r => `
+    <li class="transaction-item">
+      <div class="txn-icon" style="background:var(--danger-soft)">${catEmoji(r.category)}</div>
+      <div class="txn-info">
+        <div class="txn-source">${escHtml(r.category)}</div>
+        <div class="txn-meta">${fmtDate(r.date)}${r.description ? ' · ' + escHtml(r.description) : ''} · ${escHtml(r.payment_method)}</div>
+      </div>
+      <div class="txn-amount expense">${fmt(r.amount)}</div>
+      <button class="txn-del" data-id="${r.id}" title="Delete">✕</button>
+    </li>`).join('');
+
+  ul.querySelectorAll('.txn-del').forEach(btn => {
+    btn.addEventListener('click', () => window.deleteExpense(btn.dataset.id));
+  });
+}
+
+
+/* ── 11. BUDGET ───────────────────────────────────────────────────────*/
+window.setBudget = async function(e) {
+  e.preventDefault();
+  clearFieldErrors('budget-form');
+
+  const category = document.getElementById('budget-category').value;
+  const amount   = document.getElementById('budget-amount').value;
+
+  if (!validatePositiveNumber(amount)) { showFieldError('budget-amount-err'); return; }
+
+  const btn = document.getElementById('budget-submit-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    await dbUpsertBudget(category, parseFloat(amount));
+    document.getElementById('budget-form').reset();
+    toast(`Budget updated for ${category}`, 'success');
+    await refreshAll();
+  } catch (err) {
+    toast('Failed to set budget: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Set Budget';
+  }
+};
+
+async function renderBudget() {
+  const [budgets, expenses] = await Promise.all([dbFetch('budgets'), dbFetch('expenses')]);
+  const container = document.getElementById('budget-vs-actual');
+  if (!budgets.length) {
+    container.innerHTML = `<div class="list-empty"><div class="list-empty-icon">📊</div><div class="list-empty-text">Set a budget to see comparisons</div></div>`;
+    return;
+  }
+  const spentMap = {};
+  expenses.forEach(e => { spentMap[e.category] = (spentMap[e.category] || 0) + e.amount; });
+
+  container.innerHTML = budgets.map((b, i) => {
+    const spent = spentMap[b.category] || 0;
+    const pct   = b.budget_amount > 0 ? Math.min(Math.round((spent / b.budget_amount) * 100), 100) : 0;
+    const over  = spent > b.budget_amount;
+    const color = BUDGET_COLORS[i % BUDGET_COLORS.length];
+    return `
+      <div class="budget-item">
+        <div class="budget-row">
+          <div class="budget-category">
+            <span class="budget-category-dot" style="background:${color}"></span>
+            ${escHtml(b.category)}
+          </div>
+          <div class="budget-amounts">${fmt(spent)} / ${fmt(b.budget_amount)}</div>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill ${over ? 'red' : pct > 75 ? 'amber' : 'green'}"
+               style="width:${pct}%;background:${color}"></div>
+        </div>
+        <div class="budget-row" style="margin-top:4px;margin-bottom:0">
+          <span class="budget-pct">${pct}% used</span>
+          <span class="budget-pct" style="color:${over ? 'var(--danger)' : 'var(--accent-2)'}">
+            ${over ? 'Over by ' + fmt(spent - b.budget_amount) : fmt(b.budget_amount - spent) + ' left'}
+          </span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+
+/* ── 12. EMI ──────────────────────────────────────────────────────────*/
+function daysUntil(dateStr) {
+  return Math.ceil((new Date(dateStr) - new Date()) / 86400000);
+}
+
+window.addEMI = async function(e) {
+  e.preventDefault();
+  clearFieldErrors('emi-form');
+
+  const name      = document.getElementById('emi-name').value.trim();
+  const date      = document.getElementById('emi-date').value;
+  const monthly   = document.getElementById('emi-monthly').value;
+  const principal = document.getElementById('emi-principal').value;
+
+  let valid = true;
+  if (!validateNotEmpty(name))            { showFieldError('emi-name-err');      valid = false; }
+  if (!date)                              { showFieldError('emi-date-err');      valid = false; }
+  if (!validatePositiveNumber(monthly))   { showFieldError('emi-monthly-err');   valid = false; }
+  if (!validatePositiveNumber(principal)) { showFieldError('emi-principal-err'); valid = false; }
+  if (!valid) return;
+
+  const btn = document.getElementById('emi-submit-btn');
+  btn.disabled = true; btn.textContent = 'Adding…';
+  try {
+    await dbInsert('emis', {
+      name, next_payment_date: date,
+      monthly_emi: parseFloat(monthly),
+      principal_amount: parseFloat(principal)
+    });
+    document.getElementById('emi-form').reset();
+    setDateDefaults();
+    toast('EMI added', 'success');
+    await refreshAll();
+  } catch (err) {
+    toast('Failed to add EMI: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Add EMI';
+  }
+};
+
+window.deleteEMI = async function(id) {
+  try {
+    await dbDelete('emis', id);
+    toast('EMI removed', 'warning');
+    await refreshAll();
+  } catch (err) {
+    toast('Delete failed: ' + err.message, 'error');
+  }
+};
+
+async function renderEMI() {
+  const data = await dbFetch('emis');
+  const container = document.getElementById('emi-list');
+  if (!data.length) {
+    container.innerHTML = `<div class="list-empty"><div class="list-empty-icon">📅</div><div class="list-empty-text">No EMIs added yet</div></div>`;
+    return;
+  }
+  container.innerHTML = data.map(r => {
+    const days = daysUntil(r.next_payment_date);
+    const due  = days >= 0 && days <= 5;
+    return `
+      <div class="emi-item">
+        <div class="emi-icon" style="${due ? 'background:var(--danger-soft)' : ''}">🏦</div>
+        <div class="emi-info">
+          <div class="emi-name">${escHtml(r.name)}</div>
+          <div class="emi-date">Next: ${fmtDate(r.next_payment_date)}
+            ${due ? `<span class="emi-due-badge">⚠️ ${days === 0 ? 'Today' : days + ' days'}</span>` : ''}
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Principal: ${fmt(r.principal_amount)}</div>
+        </div>
+        <div>
+          <div class="emi-amount ${due ? 'due' : ''}">${fmt(r.monthly_emi)}<span style="font-size:11px;font-weight:400;color:var(--text-muted)">/mo</span></div>
+          <button class="btn btn-sm btn-danger" data-id="${r.id}" style="margin-top:8px">Remove</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  container.querySelectorAll('.btn-danger').forEach(btn => {
+    btn.addEventListener('click', () => window.deleteEMI(btn.dataset.id));
+  });
+}
+
+async function renderEMIAlerts() {
+  const data = await dbFetch('emis');
+  const container = document.getElementById('emi-alerts-list');
+  const due = data.filter(r => { const d = daysUntil(r.next_payment_date); return d >= 0 && d <= 5; });
+  if (!due.length) {
+    container.innerHTML = `<div class="list-empty"><div class="list-empty-icon">🎉</div><div class="list-empty-text">No EMIs due in the next 5 days</div></div>`;
+    return;
+  }
+  container.innerHTML = due.map(r => {
+    const days = daysUntil(r.next_payment_date);
+    return `
+      <div class="alert-item">
+        <span class="alert-icon">🔔</span>
+        <div class="alert-text">
+          <div class="alert-name">${escHtml(r.name)}</div>
+          <div class="alert-detail">Due ${days === 0 ? 'today' : days + ' day(s)'} · ${fmtDate(r.next_payment_date)}</div>
+        </div>
+        <div class="alert-amount">${fmt(r.monthly_emi)}</div>
+      </div>`;
+  }).join('');
+}
+
+
+/* ── 13. GOALS ────────────────────────────────────────────────────────*/
+window.addGoal = async function(e) {
+  e.preventDefault();
+  clearFieldErrors('goal-form');
+
+  const name    = document.getElementById('goal-name').value.trim();
+  const target  = document.getElementById('goal-target').value;
+  const current = document.getElementById('goal-current').value  || '0';
+  const monthly = document.getElementById('goal-monthly').value  || '0';
+
+  let valid = true;
+  if (!validateNotEmpty(name))           { showFieldError('goal-name-err');   valid = false; }
+  if (!validatePositiveNumber(target))   { showFieldError('goal-target-err'); valid = false; }
+  if (!valid) return;
+
+  const btn = document.getElementById('goal-submit-btn');
+  btn.disabled = true; btn.textContent = 'Adding…';
+  try {
+    await dbInsert('goals', {
+      name,
+      target_amount:  parseFloat(target),
+      current_saved:  Math.max(0, parseFloat(current) || 0),
+      monthly_saving: Math.max(0, parseFloat(monthly) || 0),
+    });
+    document.getElementById('goal-form').reset();
+    toast('Goal added! 🎯', 'success');
+    await refreshAll();
+  } catch (err) {
+    toast('Failed to add goal: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Add Goal';
+  }
+};
+
+window.deleteGoal = async function(id) {
+  try {
+    await dbDelete('goals', id);
+    toast('Goal removed', 'warning');
+    await refreshAll();
+  } catch (err) {
+    toast('Delete failed: ' + err.message, 'error');
+  }
+};
+
+function goalHTML(g) {
+  const pct    = g.target_amount > 0 ? Math.min(Math.round((g.current_saved / g.target_amount) * 100), 100) : 0;
+  const rem    = g.target_amount - g.current_saved;
+  const months = g.monthly_saving > 0 ? Math.ceil(rem / g.monthly_saving) : null;
+  const eta    = months ? (months > 12 ? Math.round(months / 12) + ' yrs' : months + ' mo') : null;
+  return `
+    <div class="goal-card">
+      <div class="goal-header">
+        <div>
+          <div class="goal-name">${escHtml(g.name)}</div>
+          ${eta ? `<div class="goal-timeline">~${eta} to reach goal</div>` : ''}
+        </div>
+        <button class="btn btn-sm btn-danger" data-id="${g.id}">✕</button>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill ${pct >= 100 ? 'green' : ''}" style="width:${pct}%"></div>
+      </div>
+      <div class="goal-amounts">
+        <span>Saved: <strong>${fmt(g.current_saved)}</strong></span>
+        <span><strong>${pct}%</strong> of ${fmt(g.target_amount)}</span>
+      </div>
+      ${g.monthly_saving > 0 ? `<div style="font-size:12px;color:var(--text-muted);margin-top:4px">Monthly: ${fmt(g.monthly_saving)}</div>` : ''}
+    </div>`;
+}
+
+async function renderGoals() {
+  const data = await dbFetch('goals');
+  const inline   = document.getElementById('goals-list-inline');
+  const dashSnip = document.getElementById('dash-goals-list');
+  const empty    = `<div class="list-empty"><div class="list-empty-icon">🎯</div><div class="list-empty-text">No goals yet. Start one!</div></div>`;
+  if (!data.length) { inline.innerHTML = empty; dashSnip.innerHTML = empty; return; }
+  inline.innerHTML   = data.map(goalHTML).join('');
+  dashSnip.innerHTML = data.slice(0, 2).map(goalHTML).join('');
+
+  // attach delete listeners
+  [inline, dashSnip].forEach(el => {
+    el.querySelectorAll('.btn-danger[data-id]').forEach(btn => {
+      btn.addEventListener('click', () => window.deleteGoal(btn.dataset.id));
+    });
+  });
+}
+
+
+/* ── 14. STATS + AI ADVISOR ───────────────────────────────────────────*/
+async function renderStats() {
+  const [income, expenses, emis, budgets] = await Promise.all([
+    dbFetch('income'), dbFetch('expenses'), dbFetch('emis'), dbFetch('budgets')
+  ]);
+
+  const totalIncome   = income.reduce((a, r) => a + Number(r.amount), 0);
+  const totalExpenses = expenses.reduce((a, r) => a + Number(r.amount), 0);
+  const totalEMI      = emis.reduce((a, r) => a + Number(r.monthly_emi), 0);
+  const netSavings    = totalIncome - totalExpenses - totalEMI;
+  const savingsRate   = totalIncome > 0 ? Math.max(0, Math.round((netSavings / totalIncome) * 100)) : 0;
+  const totalBudget   = budgets.reduce((a, b) => a + Number(b.budget_amount), 0);
+  const budgetUsed    = totalBudget > 0 ? Math.min(Math.round((totalExpenses / totalBudget) * 100), 100) : 0;
+
+  setText('stat-income',   fmt(totalIncome));
+  setText('stat-expenses', fmt(totalExpenses));
+  setText('stat-emi',      fmt(totalEMI));
+  const savEl = document.getElementById('stat-savings');
+  if (savEl) { savEl.textContent = fmt(netSavings); savEl.className = 'stat-value ' + (netSavings >= 0 ? 'green' : 'red'); }
+
+  setText('db-total-budget',    fmt(totalBudget));
+  setText('db-budget-pct',      budgetUsed + '% used');
+  setText('db-budget-remaining', fmt(Math.max(0, totalBudget - totalExpenses)) + ' remaining');
+  const fill = document.getElementById('db-budget-fill');
+  if (fill) { fill.style.width = budgetUsed + '%'; fill.className = `progress-fill ${budgetUsed > 90 ? 'red' : budgetUsed > 70 ? 'amber' : 'green'}`; }
+
+  // Savings ring
+  const C = 2 * Math.PI * 50;
+  setRing('savings-ring-fill', savingsRate, C, savingsRate >= 20 ? 'green' : savingsRate >= 10 ? '' : 'red');
+  setText('savings-rate-num',     savingsRate + '%');
+  setText('savings-rate-display', savingsRate + '%');
+  setText('savings-tagline',
+    savingsRate >= 30 ? 'Excellent habit! 🚀' :
+    savingsRate >= 20 ? 'Great savings rate 🌟' :
+    savingsRate >= 10 ? 'Building momentum 📈' : 'Building wealth…'
+  );
+
+  // Health score
+  const healthScore = Math.min(100, Math.round(
+    (savingsRate * 0.5) +
+    (totalBudget > 0 && totalExpenses <= totalBudget ? 25 : 0) +
+    (emis.length > 0 ? 15 : 20) +
+    (income.length > 0 ? 10 : 0)
+  ));
+  setText('health-score-num',   healthScore || '—');
+  setText('advisor-savings-rate', savingsRate + '%');
+
+  const healthClass  = healthScore >= 70 ? 'green' : healthScore >= 30 ? 'amber' : 'red';
+  const healthLabel  = healthScore >= 70 ? 'Excellent 🌟' : healthScore >= 50 ? 'Good 👍' : healthScore >= 30 ? 'Fair ⚡' : 'Needs work 📊';
+  const healthColors = { green: 'var(--accent-2)', amber: 'var(--warning)', red: 'var(--danger)', '': 'var(--text-primary)' };
+  setRing('health-ring-fill', healthScore, C, healthClass);
+  const statusEl = document.getElementById('health-status');
+  if (statusEl) { statusEl.textContent = healthLabel; statusEl.style.color = healthColors[healthClass] || 'var(--text-primary)'; }
+
+  // Budget suggestions
+  const spentMap = {};
+  expenses.forEach(e => { spentMap[e.category] = (spentMap[e.category] || 0) + Number(e.amount); });
+  const overBudget = budgets.filter(b => (spentMap[b.category] || 0) > b.budget_amount);
+  const suggestEl = document.getElementById('budget-suggestions');
+  if (!budgets.length && !expenses.length) {
+    suggestEl.innerHTML = `<div class="list-empty" style="padding:24px"><div class="list-empty-icon">💡</div><div class="list-empty-text">Add income and expenses to get suggestions</div></div>`;
+  } else {
+    const tips = [];
+    overBudget.forEach(b => {
+      tips.push({ icon:'⚠️', text: `Over budget on <strong>${b.category}</strong> by ${fmt((spentMap[b.category] || 0) - b.budget_amount)}.` });
+    });
+    if (savingsRate < 20) tips.push({ icon:'💰', text: `Savings rate is <strong>${savingsRate}%</strong>. Target 20%+ for real wealth.` });
+    if (savingsRate >= 20) tips.push({ icon:'🌟', text: `Great savings rate of <strong>${savingsRate}%</strong>! Consider investing surplus.` });
+    if (totalEMI > totalIncome * 0.4) tips.push({ icon:'📉', text: `EMIs exceed <strong>40% of income</strong>. Try reducing loan burden.` });
+    if (!tips.length) tips.push({ icon:'✅', text: `You're on track! Keep maintaining this discipline.` });
+    suggestEl.innerHTML = `<ul class="tip-list">${tips.slice(0, 4).map(s =>
+      `<li class="tip-item"><span class="tip-num">${s.icon}</span><span class="tip-text">${s.text}</span></li>`
+    ).join('')}</ul>`;
+  }
+}
+
+function setText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+
+function setRing(id, pct, C, cls) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.strokeDashoffset = C - (pct / 100) * C;
+  el.className = `score-ring-fill ${cls}`;
+}
+
+
+/* ── 15. SECURITY: HTML ESCAPING ──────────────────────────────────────*/
+function escHtml(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+
+/* ── 16. REFRESH ALL ──────────────────────────────────────────────────*/
+async function refreshAll() {
+  await Promise.all([
+    renderStats(),
+    renderIncome(),
+    renderExpenses(),
+    renderBudget(),
+    renderEMI(),
+    renderEMIAlerts(),
+    renderGoals(),
+  ]);
+}
+
+
+/* ── 17. BOOT SEQUENCE ────────────────────────────────────────────────*/
+window.addEventListener('DOMContentLoaded', async () => {
+  setDateDefaults();
+  setLoaderText('Checking authentication…');
+
+  if (!isConfigured) {
+    // No Supabase credentials — show error and hide loader
+    const banner = document.getElementById('db-error-banner');
+    if (banner) banner.style.display = 'flex';
+    toast('Configure SUPABASE_URL and SUPABASE_ANON_KEY to enable auth & sync', 'warning', 7000);
+    hideAuthScreen();
+    hideLoader();
+    return;
+  }
+
+  // Listen for auth state changes (login, logout, token refresh, page reload)
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    currentUser = session?.user ?? null;
+
+    if (event === 'SIGNED_OUT' || !currentUser) {
+      // Clear any sensitive state
+      updateSidebarUser(null);
+      showAuthScreen();
+      hideLoader();
+      return;
+    }
+
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+      updateSidebarUser(currentUser);
+      hideAuthScreen();
+      setLoaderText('Loading your data…');
+      await refreshAll();
+      hideLoader();
+      if (event === 'SIGNED_IN') toast(`Welcome back, ${currentUser.email.split('@')[0]}! 👋`, 'success');
+    }
+  });
+
+  // Restore existing session immediately (no flicker)
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    showAuthScreen();
+    hideLoader();
+  }
+  // onAuthStateChange handles the rest for existing sessions
+});
+
+</script>
+
+</body>
+</html>
